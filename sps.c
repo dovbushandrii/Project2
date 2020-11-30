@@ -9,12 +9,12 @@ typedef struct CellStruct {
 	unsigned sizeOfText;
 }cell;
 
-typedef struct Row {
+typedef struct RowStruct {
 	cell* row;
 	unsigned numberOfCells;
 }row;
 
-typedef struct Table {
+typedef struct TableStruct {
 	row* table;
 	unsigned numberOfRows;
 }table;
@@ -158,7 +158,7 @@ char* concantinate(char* A, char* B) {
 				result[i] = A[i];
 			}
 			for (; i < sizeA + sizeB; i++) {
-				result[i] = B[i - sizeA]; //Здесь указывает переполнение буфера
+				result[i] = B[i - sizeA];
 			}
 			result[sizeA + sizeB] = '\0';
 		}
@@ -266,7 +266,6 @@ void printTable(table* _table, const char delim) {
 
 
 ///////////////////////////INSERT NEW ELEMENTS TO TABLE/////////////////////////////
-
 /*
 * Inserts empty column to
 * position @index.
@@ -382,28 +381,103 @@ void appendRow(table* _table) {
 }
 ////////////////////////////////////////////////////////////////////////////////////
 
+/////////////////////////DELETE TABLE ELEMENTS FROM TABLE/////////////////////////////
+/*
+* Removes row with index @index in @_table
+*/
+void deleteRow(table* _table, unsigned index) {
+	if (_table != NULL) {
+		/*index is unsigned, so check only 
+		* if index >= _table->numberOfRows
+		*/
+		if (index >= _table->numberOfRows) {
+			index = _table->numberOfRows - 1;
+		}
+
+		freeRow(&_table->table[index]);
+		_table->numberOfRows--;
+
+		for (unsigned i = index; i < _table->numberOfRows; i++) {
+			_table->table[i] = _table->table[i + 1];
+		}
+
+		row* tmp = (row*)realloc(_table->table, _table->numberOfRows * sizeof(row));
+		/*If _table->numberOfRows  = 0
+		* tmp could be either NULL of some pointer.
+		* Just in order to not cause problems
+		* in freeTable functions, I assume that
+		* NULL can be getted ONLY in case of
+		* _table->numberOfRows  = 0.
+		* So I wont check tmp != NULL
+		* before setting tmp values to
+		* _table->table.
+		*/
+		_table->table = tmp;
+	}
+}
+
+/*
+* Removes cell with index @index in @_row
+*/
+void deleteColumnInRow(row* _row, unsigned index) {
+	if (_row != NULL) {
+		/*index is unsigned, so check only
+		* if index >= _row->numberOfCells
+		*/
+		if (index >= _row->numberOfCells) {
+			index = _row->numberOfCells - 1;
+		}
+
+		freeCell(&_row->row[index]);
+		_row->numberOfCells--;
+
+		for (unsigned i = index; i < _row->numberOfCells; i++) {
+			_row->row[i] = _row->row[i + 1];
+		}
+		
+		cell* tmp = (cell*)realloc(_row->row, _row->numberOfCells * sizeof(cell));
+		/*If _row->numberOfCells = 0
+		* tmp could be either NULL of some pointer.
+		* Just in order to not cause problems
+		* in freeTable functions, I assume that
+		* NULL can be getted ONLY in case of
+		* _row->numberOfCells = 0.
+		* So I wont check tmp != NULL
+		* before setting tmp values to 
+		* _row->row.
+		*/
+		_row->row = tmp;
+	}
+}
+
+/*
+* Removes column with index @index in table
+*/
+void deleteColumn(table* _table, unsigned index) {
+	if (_table != NULL) {
+		for (unsigned i = 0; i < _table->numberOfRows; i++) {
+			deleteColumnInRow(&_table->table[i],index);
+		}
+	}
+}
+////////////////////////////////////////////////////////////////////////////////////
+
 /////////////////////////DELETE TABLE ELEMENTS FROM END/////////////////////////////
 /*
 * Removes last row in table
 */
 void popBackRow(table* _table) {
 	if (_table != NULL) {
-		freeRow(&_table->table[--(_table->numberOfRows)]);
-		row* tmp = (row*)realloc(_table->table, _table->numberOfRows * sizeof(row));
-		if(tmp != NULL)
-			_table->table = tmp;	
+		deleteRow(_table, _table->numberOfRows);
 	}
 }
 
 /*
 * Removes last cell in row
 */
-void popBackCellInRow(row* _row) {
+void popBackColumnInRow(row* _row) {
 	if (_row != NULL) {
-		freeCell(&_row->row[--_row->numberOfCells]);
-		cell* tmp = (cell*)realloc(_row->row, _row->numberOfCells * sizeof(cell));
-		if (tmp != NULL)
-			_row->row = tmp;
+		deleteColumnInRow(_row, _row->numberOfCells);
 	}
 }
 
@@ -413,7 +487,7 @@ void popBackCellInRow(row* _row) {
 void popBackColumn(table* _table) {
 	if (_table != NULL) {
 		for (unsigned i = 0; i < _table->numberOfRows; i++) {
-			popBackCellInRow(&_table->table[i]);
+			popBackColumnInRow(&_table->table[i]);
 		}
 	}
 }
@@ -422,27 +496,5 @@ void popBackColumn(table* _table) {
 
 int main(int argc, char* argv[]) {
 	(void)argc, (void)argv;
-	table newTable;
-	initializeTable(&newTable);
-	appendRow(&newTable);
-	appendRow(&newTable);
-	appendColumn(&newTable);
-	appendColumn(&newTable);
-	setCellText(&newTable, "A", 0, 0);
-	setCellText(&newTable, "B", 1, 0);
-	setCellText(&newTable, "C", 0, 1);
-	setCellText(&newTable, "D", 1, 1);
-	insertRow(&newTable, 10);
-	setCellText(&newTable, "W", 0, 1);
-	setCellText(&newTable, "V", 1, 1);
-	insertColumn(&newTable, 3);
-	printTable(&newTable, ':');
-	printf("\n");
-	popBackColumn(&newTable);
-	printTable(&newTable, ':');
-	printf("\n");
-	popBackColumn(&newTable);
-	printTable(&newTable, ':');
-	freeTable(&newTable);
 	return 0;
 }
