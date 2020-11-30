@@ -265,11 +265,17 @@ void printTable(table* _table, const char delim) {
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-/////////////////////////APPEND NEW TABLE ELEMENTS TO END///////////////////////////
-/**
-* Appends new cell to row's end
+///////////////////////////INSERT NEW ELEMENTS TO TABLE/////////////////////////////
+
+/*
+* Inserts empty column to
+* position @index.
+* If @index <= 0, the column will
+* be inserted to pos 0
+* If @index >= @_row->numberOfCells - 1
+* then the column will be inserted at the end.
 */
-void appendColumnToRow(row* _row) {
+void insertColumnToRow(row* _row, unsigned index) {
 	if (_row != NULL) {
 		_row->numberOfCells++;
 		cell* tmp = (cell*)realloc(_row->row, _row->numberOfCells * sizeof(row));
@@ -279,11 +285,79 @@ void appendColumnToRow(row* _row) {
 			cell newCell;
 			initializeCell(&newCell);
 
-			_row->row[_row->numberOfCells - 1] = newCell;
+			unsigned i = _row->numberOfCells - 1;
+			for (; i > 0 && i > index; i--) {
+				_row->row[i] = _row->row[i - 1];
+			}
+			_row->row[i] = newCell;
 		}
 		else {
 			_row->numberOfCells--;
 		}
+	}
+}
+
+/*
+* Inserts empty column to
+* position @index.
+* If @index <= 0, the column will
+* be inserted to pos 0
+* If @index >= @_row->numberOfCells - 1
+* then the column will be inserted at the end.
+*/
+void insertColumn(table* _table, unsigned index) {
+	if (_table != NULL) {
+		for (unsigned i = 0; i < _table->numberOfRows; i++) {
+			insertColumnToRow(&_table->table[i],index);
+		}
+	}
+}
+
+/*
+* Inserts empty row to 
+* position @index.
+* If @index <= 0, the row will
+* be inserted to pos 0
+* If @index >= @_table->numberOfRows - 1
+* then the row will be inserted at the end.
+*/
+void insertRow(table* _table, unsigned index) {
+	if (_table != NULL) {
+		_table->numberOfRows++;
+		row* tmp = (row*)realloc(_table->table, _table->numberOfRows * sizeof(row));
+		if (tmp != NULL) {
+			_table->table = tmp;
+
+			row newRow;
+			initializeRow(&newRow);
+			//Set number on cell in row = column number
+			if (_table->numberOfRows > 1) {
+				for (unsigned i = 0; i < _table->table[0].numberOfCells; i++) {
+					insertColumnToRow(&newRow,newRow.numberOfCells);
+				}
+			}
+
+			unsigned i = _table->numberOfRows - 1;
+			for (; i > 0 && i > index; i--) {
+				_table->table[i] = _table->table[i - 1];
+			}
+			_table->table[i] = newRow;
+		}
+		else {
+			_table->numberOfRows--;
+		}
+	}
+}
+////////////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////APPEND NEW TABLE ELEMENTS TO END///////////////////////////
+/**
+* Appends new cell to row's end
+*/
+void appendColumnToRow(row* _row) {
+	if (_row != NULL) {
+		insertColumnToRow(_row, _row->numberOfCells);
 	}
 }
 
@@ -303,60 +377,10 @@ void appendColumn(table* _table) {
 */
 void appendRow(table* _table) {
 	if (_table != NULL) {
-		_table->numberOfRows++;
-		row* tmp = (row*)realloc(_table->table, _table->numberOfRows * sizeof(row));
-		if (tmp != NULL) {
-			_table->table = tmp;
-
-			row newRow;
-			initializeRow(&newRow);
-			//Set number on cell in row = column number
-			if (_table->numberOfRows > 1) {
-				for (unsigned i = 0; i < _table->table[0].numberOfCells; i++) {
-					appendColumnToRow(&newRow);
-				}
-			}
-
-			_table->table[_table->numberOfRows - 1] = newRow;
-		}
-		else {
-			_table->numberOfRows--;
-		}
+		insertRow(_table, _table->numberOfRows);
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////////
-
-
-///////////////////////////INSERT NEW ELEMENTS TO TABLE/////////////////////////////
-void insertRow(table* _table, unsigned index) {
-	if (_table != NULL) {
-		_table->numberOfRows++;
-		row* tmp = (row*)realloc(_table->table, _table->numberOfRows * sizeof(row));
-		if (tmp != NULL) {
-			_table->table = tmp;
-
-			row newRow;
-			initializeRow(&newRow);
-			//Set number on cell in row = column number
-			if (_table->numberOfRows > 1) {
-				for (unsigned i = 0; i < _table->table[0].numberOfCells; i++) {
-					appendColumnToRow(&newRow);
-				}
-			}
-
-			unsigned i = _table->numberOfRows - 1;
-			for (; i > 0 && i > index; i--) {
-				_table->table[i] = _table->table[i - 1];
-			}
-			_table->table[i] = newRow;
-		}
-		else {
-			_table->numberOfRows--;
-		}
-	}
-}
-////////////////////////////////////////////////////////////////////////////////////
-
 
 /////////////////////////DELETE TABLE ELEMENTS FROM END/////////////////////////////
 /*
@@ -411,6 +435,13 @@ int main(int argc, char* argv[]) {
 	insertRow(&newTable, 10);
 	setCellText(&newTable, "W", 0, 1);
 	setCellText(&newTable, "V", 1, 1);
+	insertColumn(&newTable, 3);
+	printTable(&newTable, ':');
+	printf("\n");
+	popBackColumn(&newTable);
+	printTable(&newTable, ':');
+	printf("\n");
+	popBackColumn(&newTable);
 	printTable(&newTable, ':');
 	freeTable(&newTable);
 	return 0;
