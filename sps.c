@@ -209,29 +209,93 @@ bool algorithmKMP(char* str, char* obr, int* pi) {
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-//////////////////////////GET SET CELL TEXT/////////////////////////////////////////
+///////////////////////////NUMBER FUNCTIONS/////////////////////////////////////////
 /**
-* Returns pointer on text is cell
-* with coordinates (@x,@y)
-* @tab - pointer on table
+* Returns number of decimal 
+* digits in @number
 */
-cell* getCellPtr(table* _table, const unsigned x, const unsigned y) {
-	return &_table->table[y].row[x];
-}
-
-/**
-* Copies text from @text to cell
-* with coordinates (@x,@y)
-* @tab - pointer on table
-*/
-void setCellText(table* _table, char* text, const unsigned x, const unsigned y) {
-	cell* gettedCell = getCellPtr(_table, x, y);
-	copy(text, gettedCell->cellText);
-	gettedCell->sizeOfText = length(text);
+int digitCount(int number) {
+	if (number) {
+		unsigned result = 0;
+		while (number) {
+			number /= 10;
+			result++;
+		}
+		return result;
+	}
+	return 1;
 }
 ////////////////////////////////////////////////////////////////////////////////////
 
 
+//////////////////////////CELL EDIT FUNCTIONS///////////////////////////////////////
+/**
+* Returns pointer on text is cell
+* with coordinates (@x,@y).
+* Return NULL if @_table is NULL
+* @tab - pointer on table
+*/
+cell* getCellPtr(table* _table, const unsigned x, const unsigned y) {
+	if (_table != NULL) {
+		return &_table->table[y].row[x];
+	}
+	return NULL;
+}
+
+/**
+* Copies text from @text to @_cell
+* with coordinates (@x,@y), if 
+* @_cell and @text aren't NULL.
+*/
+void setText(cell* _cell, char* text) {
+	if (_cell != NULL && text != NULL) {
+		copy(text, _cell->cellText);
+		_cell->sizeOfText = length(text);
+	}
+}
+
+/**
+* Number(@number > 0) from @number tranforms
+* to text and set it to @_cell
+* with coordinates (@x,@y), if 
+* @_cell isn't NULL.
+*/
+void setNumber(cell* _cell, int number) {
+	if (_cell != NULL) {
+		int digCount = digitCount(number);
+		char* tmp = (char*)realloc(_cell->cellText, (digCount + 1) * sizeof(char));
+		if (tmp != NULL) {
+			_cell->sizeOfText = digCount;
+			_itoa_s(number, _cell->cellText, digCount + 1, 10);
+		}
+		(void)number;
+	}
+}
+
+/**
+* Sets @_cell->sizeOfText = 0 and
+* realloc-s @_cell->cellText to pointer
+* on empty space, if @_cell isn't NULL
+*/
+void clear(cell* _cell) {
+	if (_cell != NULL) {
+		char* tmp = (char*)realloc(_cell->cellText, 0);
+		_cell->cellText = tmp;
+		_cell->sizeOfText = 0;
+	}
+}
+
+/**
+* Swaps texts between @a and @b
+* cells if @a and @b aren't NULL
+*/
+void swap(cell* a, cell* b) {
+	if (a != NULL && b != NULL) {
+		cell tmp = *b;
+		*b = *a;
+		*a = tmp;
+	}
+}
 /////////////////////////TABLE PRINTTING FUNCTIONS//////////////////////////////////
 /**
 * Prints @_row to stdout.
