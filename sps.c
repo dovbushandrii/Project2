@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#define MAX_LINE_SIZE 10000
+#define MAX_CELL_TEXT_SIZE 500
 
 
 /////////////////////////////////TABLE STRUCTURES///////////////////////////////////
@@ -296,57 +298,24 @@ void swap(cell* a, cell* b) {
 		*a = tmp;
 	}
 }
-/////////////////////////TABLE PRINTTING FUNCTIONS//////////////////////////////////
-/**
-* Prints @_row to stdout.
-* @delim - symbol that separates cells
-*/
-void printRow(row* _row, const char delim) {
-	if (_row != NULL) {
-		for (unsigned i = 0; i < _row->numberOfCells; i++) {
-			if (_row->row[i].sizeOfText > 0)
-				printf("%s", _row->row[i].cellText);
-
-			if (i < _row->numberOfCells - 1)
-				printf("%c", delim);
-
-			else printf("\n");
-		}
-	}
-}
-
-/*
-* Prints @_table to stdout.
-* @delim - symbol that separates cells
-*/
-void printTable(table* _table, const char delim) {
-	if (_table != NULL) {
-		for (unsigned i = 0; i < _table->numberOfRows; i++) {
-			printRow(&_table->table[i], delim);
-		}
-	}
-}
 ////////////////////////////////////////////////////////////////////////////////////
 
 
 ///////////////////////////INSERT NEW ELEMENTS TO TABLE/////////////////////////////
-/*
-* Inserts empty column to
+/**
+* Inserts @newCell to
 * position @index.
 * If @index <= 0, the column will
 * be inserted to pos 0
 * If @index >= @_row->numberOfCells - 1
 * then the column will be inserted at the end.
 */
-void insertColumnToRow(row* _row, unsigned index) {
+void insertColumnToRow(row* _row, cell newCell, unsigned index) {
 	if (_row != NULL) {
 		_row->numberOfCells++;
 		cell* tmp = (cell*)realloc(_row->row, _row->numberOfCells * sizeof(row));
 		if (tmp != NULL) {
 			_row->row = tmp;
-
-			cell newCell;
-			initializeCell(&newCell);
 
 			unsigned i = _row->numberOfCells - 1;
 			for (; i > 0 && i > index; i--) {
@@ -360,7 +329,21 @@ void insertColumnToRow(row* _row, unsigned index) {
 	}
 }
 
-/*
+/**
+* Inserts empty column to
+* position @index.
+* If @index <= 0, the column will
+* be inserted to pos 0
+* If @index >= @_row->numberOfCells - 1
+* then the column will be inserted at the end.
+*/
+void insertEmptyColumnToRow(row* _row, unsigned index) {
+	cell newCell;
+	initializeCell(&newCell);
+	insertColumnToRow(_row, newCell, index);
+}
+
+/**
 * Inserts empty column to
 * position @index.
 * If @index <= 0, the column will
@@ -371,34 +354,25 @@ void insertColumnToRow(row* _row, unsigned index) {
 void insertColumn(table* _table, unsigned index) {
 	if (_table != NULL) {
 		for (unsigned i = 0; i < _table->numberOfRows; i++) {
-			insertColumnToRow(&_table->table[i],index);
+			insertEmptyColumnToRow(&_table->table[i],index);
 		}
 	}
 }
 
-/*
-* Inserts empty row to 
+/**
+* Inserts @row to 
 * position @index.
 * If @index <= 0, the row will
 * be inserted to pos 0
 * If @index >= @_table->numberOfRows - 1
 * then the row will be inserted at the end.
 */
-void insertRow(table* _table, unsigned index) {
+void insertRow(table* _table, row newRow, unsigned index) {
 	if (_table != NULL) {
 		_table->numberOfRows++;
 		row* tmp = (row*)realloc(_table->table, _table->numberOfRows * sizeof(row));
 		if (tmp != NULL) {
 			_table->table = tmp;
-
-			row newRow;
-			initializeRow(&newRow);
-			//Set number on cell in row = column number
-			if (_table->numberOfRows > 1) {
-				for (unsigned i = 0; i < _table->table[0].numberOfCells; i++) {
-					insertColumnToRow(&newRow,newRow.numberOfCells);
-				}
-			}
 
 			unsigned i = _table->numberOfRows - 1;
 			for (; i > 0 && i > index; i--) {
@@ -411,6 +385,26 @@ void insertRow(table* _table, unsigned index) {
 		}
 	}
 }
+
+/**
+* Inserts empty row to
+* position @index.
+* If @index <= 0, the row will
+* be inserted to pos 0
+* If @index >= @_table->numberOfRows - 1
+* then the row will be inserted at the end.
+*/
+void insertEmptyRow(table* _table, unsigned index) {
+	row newRow;
+	initializeRow(&newRow);
+	//Set number on cell in row = column number
+	if (_table->numberOfRows > 1) {
+		for (unsigned i = 0; i < _table->table[0].numberOfCells; i++) {
+			insertEmptyColumnToRow(&newRow, newRow.numberOfCells);
+		}
+	}
+	insertRow(_table, newRow, index);
+}
 ////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -420,7 +414,7 @@ void insertRow(table* _table, unsigned index) {
 */
 void appendColumnToRow(row* _row) {
 	if (_row != NULL) {
-		insertColumnToRow(_row, _row->numberOfCells);
+		insertEmptyColumnToRow(_row, _row->numberOfCells);
 	}
 }
 
@@ -440,10 +434,11 @@ void appendColumn(table* _table) {
 */
 void appendRow(table* _table) {
 	if (_table != NULL) {
-		insertRow(_table, _table->numberOfRows);
+		insertEmptyRow(_table, _table->numberOfRows);
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////////
+
 
 /////////////////////////DELETE TABLE ELEMENTS FROM TABLE/////////////////////////////
 /*
@@ -526,6 +521,7 @@ void deleteColumn(table* _table, unsigned index) {
 }
 ////////////////////////////////////////////////////////////////////////////////////
 
+
 /////////////////////////DELETE TABLE ELEMENTS FROM END/////////////////////////////
 /*
 * Removes last row in table
@@ -556,6 +552,149 @@ void popBackColumn(table* _table) {
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////TABLE NORMILIZE FUCNTIONS///////////////////////////////
+/**
+* Normalize column count for 
+* all rows in table.
+*/
+void normalize(table* _table) {
+	unsigned maxCountOfColumns = 0;
+	for (unsigned i = 0; i < _table->numberOfRows; i++) {
+		if (_table->table[i].numberOfCells > maxCountOfColumns)
+			maxCountOfColumns = _table->table[i].numberOfCells;
+	}
+	for (unsigned i = 0; i < _table->numberOfRows; i++) {
+		if (_table->table[i].numberOfCells < maxCountOfColumns) {
+			while (_table->table[i].numberOfCells < maxCountOfColumns) {
+				appendColumnToRow(&_table->table[i]);
+			}
+		}
+	}
+}
+////////////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////TABLE PRINTTING FUNCTIONS//////////////////////////////////
+/**
+* Prints @_row to stdout.
+* @delim - symbol that separates cells
+*/
+void printRow(row* _row, const char delim) {
+	if (_row != NULL) {
+		for (unsigned i = 0; i < _row->numberOfCells; i++) {
+			if (_row->row[i].sizeOfText > 0)
+				printf("%s", _row->row[i].cellText);
+
+			if (i < _row->numberOfCells - 1)
+				printf("%c", delim);
+
+			else printf("\n");
+		}
+	}
+}
+
+/*
+* Prints @_table to stdout.
+* @delim - symbol that separates cells
+*/
+void printTable(table* _table, const char delim) {
+	if (_table != NULL) {
+		for (unsigned i = 0; i < _table->numberOfRows; i++) {
+			printRow(&_table->table[i], delim);
+		}
+	}
+}
+////////////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////FILE MANAGMENT FUCNTIONS///////////////////////////////
+/**
+* Transforms char array @line to row,
+* if @line is NULL returns empty row.
+*/
+row textLineToRow(char* line, const char delim) {
+	row newRow;
+	initializeRow(&newRow);
+	if (line != NULL) {
+		char cellText[MAX_CELL_TEXT_SIZE + 1];
+		for (int i = 0, j = 0; 1; i++, j++) {
+			if (j > MAX_CELL_TEXT_SIZE) return newRow;
+
+			if (line[i] == delim || line[i] == '\0') {
+				cellText[j] = '\0';
+				cell newCell;
+				initializeCell(&newCell);
+				setText(&newCell, cellText);
+				insertColumnToRow(&newRow, newCell, newRow.numberOfCells);
+				j = -1;
+				if (line[i] == '\0') break;
+			}
+			else {
+				cellText[j] = line[i];
+			}
+		}
+	}
+	return newRow;
+}
+
+/**
+* Reads table from file
+* with name @nameOfFile
+* and writes it to @_table.
+* @delim - char that separates
+*		   cells.
+*/
+void readTableFromFile(table* _table, const char delim, char* nameOfFile) {
+	char line[MAX_LINE_SIZE + 1];
+	FILE* fin = fopen(nameOfFile, "rt");
+	if (fin != NULL) {
+		for (unsigned i = 0; fscanf(fin, "%s", line) > 0; i++) {
+			insertRow(_table, textLineToRow(line, delim), i);
+		}
+		normalize(_table);
+		fclose(fin);
+	}	
+}
+
+
+/**
+* Prints @_row to file @fout.
+* @delim - symbol that separates cells
+*/
+void writeRowToFile(row* _row, const char delim, FILE* fout) {
+	if (_row != NULL) {
+		for (unsigned i = 0; i < _row->numberOfCells; i++) {
+			if (_row->row[i].sizeOfText > 0)
+				fprintf(fout, "%s", _row->row[i].cellText);
+
+			if (i < _row->numberOfCells - 1)
+				fprintf(fout, "%c", delim);
+
+			else fprintf(fout, "\n");
+		}
+	}
+}
+
+/*
+* Prints @_table to file with name @nameOfFile.
+* @delim - symbol that separates cells
+*/
+void writeTableToFile(table* _table, const char delim, char* nameOfFile) {
+	FILE* fout = fopen(nameOfFile, "a+t");
+	if (fout != NULL) {
+		if (_table != NULL) {
+			for (unsigned i = 0; i < _table->numberOfRows; i++) {
+				writeRowToFile(&_table->table[i], delim, fout);
+			}
+		}
+		fclose(fout);
+	}
+
+}
+////////////////////////////////////////////////////////////////////////////////////
+
 
 
 int main(int argc, char* argv[]) {
