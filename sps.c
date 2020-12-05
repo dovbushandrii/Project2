@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #define MAX_LINE_SIZE 10000
 #define MAX_CELL_TEXT_SIZE 500
+#define UNDERSCORE -1			//Stands for '_' symbol
 
 
 /////////////////////////////////TABLE STRUCTURES///////////////////////////////////
@@ -107,7 +108,7 @@ void freeTable(table* _table) {
 * returns 0
 */
 unsigned length(char* text) {
-	if (text) {
+	if (text != NULL) {     //if(text) also OK
 		int i = 0;
 		while (text[i] != '\0') {
 			i++;
@@ -118,31 +119,34 @@ unsigned length(char* text) {
 }
 
 /**
-* If copy is empty line, it should be nullprt.
-* Allocate memory for @copy
-* pointer. Do not forget to free().
+* Checks if @text is a number.
+* 0 - number
+* 0,0 - number
+* 0.0 - number
+* .2 - number (0.2)
+* . - number (0)
+* 0,,0 - NOT a number
+* 0..0 - NOT a number
+* 
+* If @text is NULL return
+* false
 */
-void copy(char* origin, char* copy) {
-	if (origin != NULL) {
-		unsigned sizeOfText = length(origin);
-		char* tmp;
-		if (copy != NULL) {
-			tmp = (char*)realloc(copy, (sizeOfText + 1) * sizeof(char));
-		}
-		else {
-			tmp = (char*)malloc((sizeOfText + 1) * sizeof(char));
-		}
-
-		if (tmp != NULL) {
-			copy = tmp;
-			unsigned i = 0;
-			for (; origin[i] ; i++) {
-				copy[i] = origin[i];
+bool isThisLineANumber(char* text) {
+	if (text != NULL) {		//if(text) also OK
+		bool wasThereADot = false;
+		for (unsigned i = 0; text[i] != '\0'; i++) {
+			if (text[i] == '.' || text[i] == ',') {
+				if (!wasThereADot)
+					wasThereADot = true;
+				else
+					return false;
 			}
-			copy[i] = '\0';
+			else if (text[i] != '-' && (text[i] < '0' || text[i] >'9'))
+				return false;
 		}
+		return true;
 	}
-	else copy = NULL;
+	return false;
 }
 
 /**
@@ -166,6 +170,7 @@ char* concantinate(char* A, char* B) {
 		}
 		return result;
 	}
+	return NULL;
 }
 
 /*
@@ -175,38 +180,44 @@ char* concantinate(char* A, char* B) {
 * ATTENTION:
 * Size of @pi MUST be at least as size of @obr
 */
-bool algorithmKMP(char* str, char* obr, int* pi) {
+bool algorithmKMP(char* str, char* obr) {
 	/**
 	* Prefix function for KMP algorithm.
 	* Builds array with prefix function
 	* values for line @obr. Resulted
 	* array is in @pi array.
 	*/
-	pi[0] = 0;
-	int l;  
-	for (l = 1; obr[l]; ++l)
-	{
-		int j = pi[l - 1];
-		while ((j > 0) && (obr[l] != obr[j]))
-			j = pi[j - 1];	        
-		if (obr[l] == obr[j])  
-			++j;
-		pi[l] = j;
-	}
-	//KMP algorithm
-	int j = 0; 
-	for (int i = 0; str[i]; ++i)
-	{
-		while ((j > 0) && (str[i] != obr[j]))
-			
-			j = pi[j - 1];   
+	int* pi = (int*)malloc(length(obr) * sizeof(int));
+	if (pi != NULL) {
+		pi[0] = 0;
+		int l;
+		for (l = 1; obr[l]; ++l)
+		{
+			int j = pi[l - 1];
+			while ((j > 0) && (obr[l] != obr[j]))
+				j = pi[j - 1];
+			if (obr[l] == obr[j])
+				++j;
+			pi[l] = j;
+		}
+		//KMP algorithm
+		int j = 0;
+		for (int i = 0; str[i]; ++i)
+		{
+			while ((j > 0) && (str[i] != obr[j]))
 
-		if (str[i] == obr[j])
-			++j;              
-		if (j == l)
-			return true;
+				j = pi[j - 1];
+
+			if (str[i] == obr[j])
+				++j;
+			if (j == l)
+				return true;
+		}
+		return false;
 	}
-	return false;
+	else {
+		return false;
+	}
 }
 ////////////////////////////////////////////////////////////////////////////////////
 
@@ -233,26 +244,47 @@ int digitCount(int number) {
 //////////////////////////CELL EDIT FUNCTIONS///////////////////////////////////////
 /**
 * Returns pointer on text is cell
-* with coordinates (@x,@y).
+* with coordinates (@colInd,@rowInd).
 * Return NULL if @_table is NULL
 * @tab - pointer on table
 */
-cell* getCellPtr(table* _table, const unsigned x, const unsigned y) {
+cell* getCellPtr(table* _table, const unsigned colInd, const unsigned rowInd) {
 	if (_table != NULL) {
-		return &_table->table[y].row[x];
+		return &_table->table[rowInd].row[colInd];
 	}
 	return NULL;
 }
 
 /**
 * Copies text from @text to @_cell
-* with coordinates (@x,@y), if 
+* with coordinates (@x,@y), if
 * @_cell and @text aren't NULL.
 */
 void setText(cell* _cell, char* text) {
 	if (_cell != NULL && text != NULL) {
-		copy(text, _cell->cellText);
-		_cell->sizeOfText = length(text);
+		if (text != NULL) {
+			unsigned sizeOfText = length(text);
+			char* tmp;
+			if (_cell->cellText != NULL) {
+				tmp = (char*)realloc(_cell->cellText, (sizeOfText + 1) * sizeof(char));
+			}
+			else {
+				tmp = (char*)malloc((sizeOfText + 1) * sizeof(char));
+			}
+			if (tmp != NULL) {
+				_cell->cellText = tmp;
+				unsigned i = 0;
+				for (; text[i]; i++) {
+					_cell->cellText[i] = text[i];
+				}
+				_cell->cellText[i] = '\0';
+				_cell->sizeOfText = sizeOfText;
+			}
+		}
+		else {
+			_cell->cellText = NULL;
+			_cell->sizeOfText = 0;
+		}
 	}
 }
 
@@ -279,7 +311,7 @@ void setNumber(cell* _cell, int number) {
 * realloc-s @_cell->cellText to pointer
 * on empty space, if @_cell isn't NULL
 */
-void clear(cell* _cell) {
+void clearCell(cell* _cell) {
 	if (_cell != NULL) {
 		char* tmp = (char*)realloc(_cell->cellText, 0);
 		_cell->cellText = tmp;
@@ -291,7 +323,7 @@ void clear(cell* _cell) {
 * Swaps texts between @a and @b
 * cells if @a and @b aren't NULL
 */
-void swap(cell* a, cell* b) {
+void swapCells(cell* a, cell* b) {
 	if (a != NULL && b != NULL) {
 		cell tmp = *b;
 		*b = *a;
@@ -658,7 +690,6 @@ void readTableFromFile(table* _table, const char delim, char* nameOfFile) {
 	}	
 }
 
-
 /**
 * Prints @_row to file @fout.
 * @delim - symbol that separates cells
@@ -682,7 +713,7 @@ void writeRowToFile(row* _row, const char delim, FILE* fout) {
 * @delim - symbol that separates cells
 */
 void writeTableToFile(table* _table, const char delim, char* nameOfFile) {
-	FILE* fout = fopen(nameOfFile, "a+t");
+	FILE* fout = fopen(nameOfFile, "w+t");
 	if (fout != NULL) {
 		if (_table != NULL) {
 			for (unsigned i = 0; i < _table->numberOfRows; i++) {
@@ -696,6 +727,236 @@ void writeTableToFile(table* _table, const char delim, char* nameOfFile) {
 ////////////////////////////////////////////////////////////////////////////////////
 
 
+///////////////////////CELLS SELECTION FUNCTIONS////////////////////////////////////
+/**
+* [_,C] selection
+* Returns array of pointers
+* on table cells.
+* Last element of array
+* is NULL.
+*/
+cell** selectColumn(table* _table, int C) {
+	if (_table != NULL) {
+
+		unsigned countOfCells = _table->numberOfRows;
+		cell** select = (cell**)malloc((countOfCells + 1) * sizeof(cell*));
+
+		if (select != NULL) {
+			for (unsigned i = 0; i < countOfCells; i++) {
+				select[i] = getCellPtr(_table, C, i);
+			}
+			select[countOfCells] = NULL;
+			return select;
+		}
+	}
+	return NULL;
+}
+
+/**
+* [R,_] selection
+* Returns array of pointers
+* on table cells.
+* Last element of array
+* is NULL.
+*/
+cell** selectRow(table* _table, int R) {
+	if (_table != NULL) {
+
+		unsigned countOfCells = _table->table[R].numberOfCells;
+		cell** select = (cell**)malloc((countOfCells + 1) * sizeof(cell*));
+
+		if (select != NULL) {
+			for (unsigned i = 0; i < countOfCells; i++) {
+				select[i] = getCellPtr(_table, i, R);
+			}
+			select[countOfCells] = NULL;
+			return select;
+		}
+	}
+	return NULL;
+}
+
+/**
+* [R,C] selection
+* Returns array of pointers
+* on table cells.
+* Last element of array
+* is NULL.
+*/
+cell** selectCell(table* _table, int R, int C) {
+	if (_table != NULL) {
+
+		unsigned countOfCells = 1;
+		cell** select = (cell**)malloc((countOfCells + 1) * sizeof(cell*));
+
+		if (select != NULL) {
+			select[0] = getCellPtr(_table, C, R);
+			select[countOfCells] = NULL;
+			return select;
+		}
+	}
+	return NULL;
+}
+
+/**
+* [_,_] selection
+* Returns array of pointers
+* on table cells.
+* Last element of array
+* is NULL.
+*/
+cell** selectTable(table* _table) {
+	if (_table != NULL) {
+		if (_table->numberOfRows > 0) {
+
+			unsigned rowCount = _table->numberOfRows;
+			unsigned colCount = _table->table[0].numberOfCells;
+			unsigned countOfCells = rowCount * colCount;
+			cell** select = (cell**)malloc((countOfCells + 1) * sizeof(cell*));
+
+			if (select != NULL) {
+				for (unsigned i = 0, r = 0; r < rowCount && i < countOfCells; r++) {	//It is not nessesary to write r < rowCount
+					for (unsigned c = 0; c < colCount && i < countOfCells; c++, i++) {	//It is not nessesary to write i < countOfCells
+						select[i] = getCellPtr(_table, c, r);
+					}
+				}
+				select[countOfCells] = NULL;
+				return select;
+			}
+		}
+	}
+	return NULL;
+}
+
+/**
+* [R1,C2,R2,C2] selection
+* Returns array of pointers
+* on table cells.
+* Last element of array
+* is NULL.
+*/
+cell** selectWindow(table* _table, int R1, int C1, int R2, int C2) {
+	if (_table != NULL) {
+
+		int countOfCells = (R2 - R1 + 1) * (C2 - C1 + 1);
+		cell** select = (cell**)malloc((countOfCells + 1) * sizeof(cell*));
+
+		if (select != NULL) {
+			for (int i = 0, r = R1; r <= R2 && i < countOfCells; r++) {	//It is not nessesary to write r < R2
+				for (int c = C1; c <= C2 && i < countOfCells; c++, i++) {  //It is not nessesary to write i < countOfCells
+					select[i] = getCellPtr(_table, c, r);
+				}
+			}
+			select[countOfCells] = NULL;
+			return select;
+		}
+	}
+	return NULL;
+}
+
+/**
+* Selects cell from @cells
+* with minimum numeric value.
+* If there were not any,
+* returns only first cell
+*/
+cell** selectMin(cell** cells) {
+	if (cells[0] != NULL) {
+		unsigned indexOfMin = 0;
+		double minNumb = 0;
+		bool minSet = false;
+		for (unsigned i = 0; cells[i] != NULL; i++) {
+			if (isThisLineANumber(cells[i]->cellText)) {
+				double numb = atof(cells[i]->cellText);
+				if (!minSet || numb < minNumb) {
+					indexOfMin = i;
+					minNumb = numb;
+					minSet = true;
+				}
+			}
+		}
+		cells[0] = cells[indexOfMin];
+		cells[1] = NULL;
+	}
+	return cells;
+}
+
+/**
+* Selects cell from @cells
+* with maximum numeric value.
+* If there were not any,
+* returns only first cell
+*/
+cell** selectMax(cell** cells) {
+	if (cells[0] != NULL) {
+		unsigned indexOfMin = 0;
+		double maxNumb = 0;
+		bool minSet = false;
+		for (unsigned i = 0; cells[i] != NULL; i++) {
+			if (isThisLineANumber(cells[i]->cellText)) {
+				double numb = atof(cells[i]->cellText);
+				if (!minSet || numb > maxNumb) {
+					indexOfMin = i;
+					maxNumb = numb;
+					minSet = true;
+				}
+			}
+		}
+		cells[0] = cells[indexOfMin];
+		cells[1] = NULL;
+	}
+	return cells;
+}
+
+/**
+* Selects first cell from @cells
+* with cell text that include STR.
+* If there were not any,
+* returns only first cell
+*/
+cell** selectWithSTR(cell** cells, char* STR) {
+	if (cells[0] != NULL) {
+		for (unsigned i = 0; cells[i] != NULL; i++) {
+			if (algorithmKMP(cells[i]->cellText,STR)) {
+				cells[0] = cells[i];
+				cells[1] = NULL;
+				return cells;
+			}
+		}
+	}
+	return NULL;
+}
+////////////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////CELLS ARRAY EDIT FUNCTIONS///////////////////////////////////
+void set(cell** cells, char* STR) {
+	if (cells != NULL) {
+		for (unsigned i = 0; cells[i] != NULL; i++) {
+			setText(cells[i], STR);
+		}
+	}
+	free(cells);
+}
+
+void clear(cell** cells) {
+	if (cells != NULL) {
+		for (unsigned i = 0; cells[i] != NULL; i++) {
+			clearCell(cells[i]);
+		}
+	}
+	free(cells);
+}
+
+void swap(cell** cells, cell* mainCell) {
+	if (cells != NULL) {
+		for (unsigned i = 0; cells[i] != NULL; i++) {
+			swapCells(cells[i], mainCell);
+		}
+	}
+	free(cells);
+}
+////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char* argv[]) {
 	(void)argc, (void)argv;
