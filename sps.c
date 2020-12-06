@@ -6,6 +6,7 @@
 #define MAX_COMMAND_SIZE 1000
 #define UNDERSCORE -1			//Stands for '_'
 
+//https://github.com/dovbushandrii/Project2
 
 /////////////////////////////////TABLE STRUCTURES///////////////////////////////////
 typedef struct CellStruct {
@@ -23,6 +24,13 @@ typedef struct TableStruct {
 	unsigned numberOfRows;
 }table;
 ////////////////////////////////////////////////////////////////////////////////////
+
+void start(int args, char* argv[]);
+
+int main(int argc, char* argv[]) {
+	start(argc, argv);
+	return 0;
+}
 
 
 ////////////////////////////TABLE MEMORY MANAGMENT//////////////////////////////////
@@ -194,18 +202,18 @@ char* concantinate(char* A, char* B) {
 }
 
 /*
-* Returns cutted line @s
-* "s[from]-s[to]"
+* Returns cutted line @result
+* "line[from]-line[to]"
 * 
-* slice("abcde",1,3) = "bcd"
+* slice("abcde",result,1,3)
+* result = "bcd"
 */
-char* slice(char* s, int from, int to)
+void slice(char* line,char* result, int from, int to)
 {
 	int j = 0;
 	for (int i = from; i <= to; ++i)
-		s[j++] = s[i];
-	s[j] = '\0';
-	return s;
+		result[j++] = line[i];
+	result[j] = '\0';
 };
 
 /*
@@ -455,7 +463,7 @@ void insertEmptyRow(table* _table, unsigned index) {
 	row newRow;
 	initializeRow(&newRow);
 	//Set number on cell in row = column number
-	if (_table->numberOfRows > 1) {
+	if (_table->numberOfRows > 0) {
 		for (unsigned i = 0; i < _table->table[0].numberOfCells; i++) {
 			insertEmptyColumnToRow(&newRow, newRow.numberOfCells);
 		}
@@ -498,7 +506,7 @@ void appendRow(table* _table) {
 
 
 /////////////////////////DELETE TABLE ELEMENTS FROM TABLE/////////////////////////////
-/*
+/**
 * Removes row with index @index in @_table
 */
 void deleteRow(table* _table, unsigned index) {
@@ -707,7 +715,7 @@ void readTableFromFile(table* _table, const char delim, char* nameOfFile) {
 	char line[MAX_LINE_SIZE + 1];
 	FILE* fin = fopen(nameOfFile, "rt");
 	if (fin != NULL) {
-		for (unsigned i = 0; fscanf(fin, "%s", line) > 0; i++) {
+		for (unsigned i = 0; fscanf(fin, "%[^\n]\n", line) > 0; i++) {
 			insertRow(_table, textLineToRow(line, delim), i);
 		}
 		normalize(_table);
@@ -983,7 +991,6 @@ void set(cell** cells, char* STR) {
 			setText(cells[i], STR);
 		}
 	}
-	free(cells);
 }
 
 /**
@@ -995,7 +1002,6 @@ void clear(cell** cells) {
 			clearCell(cells[i]);
 		}
 	}
-	free(cells);
 }
 
 /**
@@ -1008,7 +1014,6 @@ void swap(cell** cells, cell* mainCell) {
 			swapCells(cells[i], mainCell);
 		}
 	}
-	free(cells);
 }
 
 /**
@@ -1035,7 +1040,6 @@ void sum(cell** cells, cell* result) {
 		sprintf(text,"%g", sum);
 		setText(result, text);
 	}
-	free(cells);
 }
 
 /**
@@ -1065,7 +1069,6 @@ void avg(cell** cells, cell* result) {
 		sprintf(text, "%g", avg);
 		setText(result, text);
 	}
-	free(cells);
 }
 
 /**
@@ -1084,7 +1087,6 @@ void count(cell** cells, cell* result) {
 		sprintf(text, "%g",count);
 		setText(result, text);
 	}
-	free(cells);
 }
 
 /*
@@ -1101,7 +1103,6 @@ void len(cell** cells, cell* result) {
 		sprintf(text, "%d", count);
 		setText(result, text);
 	}
-	free(cells);
 }
 ////////////////////////////////////////////////////////////////////////////////////
 
@@ -1136,19 +1137,19 @@ cell** twoNumArgsSelect(table* _table, char* command) {
 			}
 			else {
 				if (sscanf(command, "[%[^,],%d]", r, &C)) {
-					return selectColumn(_table, C);
+					return selectColumn(_table, C - 1);
 				}
 			}
 		}
 		else {
 			if (c[0] == '_') {
 				if (sscanf(command, "[%d,%[^]]", &R, c)) {
-					return selectRow(_table, R);
+					return selectRow(_table, R - 1);
 				}
 			}
 			else {
 				if (sscanf(command, "[%d,%d]", &R, &C)) {
-					return selectCell(_table,R,C);
+					return selectCell(_table,R - 1,C - 1);
 				}
 			}
 		}
@@ -1209,7 +1210,7 @@ cell** fourNumArgsSelect(table* _table, char* command) {
 			}
 		}
 
-		return selectWindow(_table, R1, C1, R2, C2);
+		return selectWindow(_table, R1 - 1, C1 - 1, R2 - 1, C2 - 1);
 	}
 	printf("Invalid selection command error\n");
 	return NULL;
@@ -1233,7 +1234,6 @@ cell** selNumHandler(table* _table, char* command) {
 cell** selComHandler(table* _table, cell** cells, char* command) {
 	if (command != NULL && _table != NULL) {
 		if (command[1] >= '0' && command[1] <= '9' || command[1] == '_') {
-			free(cells);
 			return selNumHandler(_table, command);
 		}
 		else if (algorithmKMP(command, "min")) {
@@ -1282,23 +1282,23 @@ void celEdiComHandler(table* _table, cell** cells, char* command) {
 					coor[MAX_COMMAND_SIZE] = '\0';
 					if (sscanf(coor, "[%d,%d]", &r, &c)) {
 						if (algorithmKMP(com, "swap")) {
-							swap(cells, getCellPtr(_table, r, c));
+							swap(cells, getCellPtr(_table, c - 1, r - 1));
 							return;
 						}
 						else if (algorithmKMP(com, "sum")) {
-							sum(cells, getCellPtr(_table, r, c));
+							sum(cells, getCellPtr(_table, c - 1, r - 1));
 							return;
 						}
 						else if (algorithmKMP(com, "avg")) {
-							avg(cells, getCellPtr(_table, r, c));
+							avg(cells, getCellPtr(_table, c - 1, r - 1));
 							return;
 						}
 						else if (algorithmKMP(com, "count")) {
-							count(cells, getCellPtr(_table, r, c));
+							count(cells, getCellPtr(_table, c - 1, r - 1));
 							return;
 						}
 						else if (algorithmKMP(com, "len")) {
-							len(cells, getCellPtr(_table, r, c));
+							len(cells, getCellPtr(_table, c - 1, r - 1));
 							return;
 						}
 					}
@@ -1340,7 +1340,7 @@ void tabEdiComHandler(table* _table, cell** cells, char* command) {
 					int startRowInd = findRowOfCell(_table, cells[0]);
 					int endRowInd = findRowOfCell(_table, getLast(cells));
 					if (algorithmKMP(com, "i")) {
-						insertEmptyRow(_table, startRowInd - 1);
+						insertEmptyRow(_table, startRowInd);
 					}
 					else if (algorithmKMP(com, "a")) {
 						insertEmptyRow(_table, endRowInd + 1);
@@ -1356,7 +1356,6 @@ void tabEdiComHandler(table* _table, cell** cells, char* command) {
 						appendRow(_table);
 					}
 				}
-				free(cells);
 				return;
 			}
 			else if (algorithmKMP(com, "col")) {
@@ -1380,7 +1379,6 @@ void tabEdiComHandler(table* _table, cell** cells, char* command) {
 						appendColumn(_table);
 					}
 				}
-				free(cells);
 				return;
 			}
 		}
@@ -1389,9 +1387,72 @@ void tabEdiComHandler(table* _table, cell** cells, char* command) {
 }
 ////////////////////////////////////////////////////////////////////////////////////
 
-int main(int argc, char* argv[]) {
-	(void)argc, (void)argv;
+
+///////////////////////////////MAIN COMMANDS HANDLER////////////////////////////////
+
+bool isThisSelection(char* command) {
+	if (command != NULL) {
+		if (command[0] == '[')
+			return true;
+	}
+	return false;
+}
+
+bool isThisTableEdit(char* command) {
+	if (command != NULL) {
+		char com[5];
+		if (sscanf(command, "%s", com)) {
+			com[4] = '\0';
+			if (algorithmKMP(com, "row") || algorithmKMP(com, "col"))
+				return true;
+		}
+	}
+	return false;
+}
+
+cell** handleComand(table* _table, cell** select, char* command) {
+	if (isThisSelection(command)) {
+		return selComHandler(_table, select, command);
+	}
+	else if (isThisTableEdit(command)) {
+		tabEdiComHandler(_table, select, command);
+		return select;
+	}
+	else {
+		celEdiComHandler(_table, select, command);
+		return select;
+	}
+}
+
+void mainHandler(table* _table, char* commands) {
+	cell** select = NULL;
+	unsigned startOfCom = 1;
+	char command[MAX_COMMAND_SIZE + 1];
+	for (int j = 1; commands[j]; j++) {
+		if (commands[j] == ';' || !commands[j + 1]) {
+			slice(commands, command, startOfCom, j - 1);
+			startOfCom = j + 1;
+			select = handleComand(_table, select, command);
+		}
+	}
+	free(select);
+}
+////////////////////////////////////////////////////////////////////////////////////
+
+void start(int args, char* argv[]) {
+	char delim = ' ';
+
 	table t;
+	initializeTable(&t);
+
+	unsigned wasThereDelim = 0;
+	if (algorithmKMP(argv[1], "-d")) {
+		delim = argv[2][0];
+		wasThereDelim = 2;
+	}
+
+	readTableFromFile(&t, delim, argv[2 + wasThereDelim]);
+	mainHandler(&t, argv[1 + wasThereDelim]);
+	writeTableToFile(&t, delim, argv[2 + wasThereDelim]);
 	freeTable(&t);
-	return 0;
 }
