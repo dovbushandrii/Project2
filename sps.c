@@ -3,7 +3,8 @@
 #include <stdbool.h>
 #define MAX_LINE_SIZE 10000
 #define MAX_CELL_TEXT_SIZE 500
-#define UNDERSCORE -1			//Stands for '_' symbol
+#define MAX_COMMAND_SIZE 1000
+#define UNDERSCORE -1			//Stands for '_'
 
 
 /////////////////////////////////TABLE STRUCTURES///////////////////////////////////
@@ -99,6 +100,25 @@ void freeTable(table* _table) {
 ////////////////////////////////////////////////////////////////////////////////////
 
 
+///////////////////////////NUMBER FUNCTIONS/////////////////////////////////////////
+/**
+* Returns number of decimal
+* digits in @number
+*/
+int digitCount(long number) {
+	if (number) {
+		int result = 0;
+		while (number) {
+			number /= 10;
+			result++;
+		}
+		return result;
+	}
+	return 1;
+}
+////////////////////////////////////////////////////////////////////////////////////
+
+
 ///////////////////////////TEXT FUNCTIONS///////////////////////////////////////////
 /**
 * Returns number of symbols
@@ -174,6 +194,21 @@ char* concantinate(char* A, char* B) {
 }
 
 /*
+* Returns cutted line @s
+* "s[from]-s[to]"
+* 
+* slice("abcde",1,3) = "bcd"
+*/
+char* slice(char* s, int from, int to)
+{
+	int j = 0;
+	for (int i = from; i <= to; ++i)
+		s[j++] = s[i];
+	s[j] = '\0';
+	return s;
+};
+
+/*
 * Knuth-Morris-Pratt Algorithm.
 * Returns true, if @obr line exists in @str line
 * @pi - array of ints.
@@ -222,25 +257,6 @@ bool algorithmKMP(char* str, char* obr) {
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-///////////////////////////NUMBER FUNCTIONS/////////////////////////////////////////
-/**
-* Returns number of decimal 
-* digits in @number
-*/
-int digitCount(int number) {
-	if (number) {
-		unsigned result = 0;
-		while (number) {
-			number /= 10;
-			result++;
-		}
-		return result;
-	}
-	return 1;
-}
-////////////////////////////////////////////////////////////////////////////////////
-
-
 //////////////////////////CELL EDIT FUNCTIONS///////////////////////////////////////
 /**
 * Returns pointer on text is cell
@@ -253,6 +269,32 @@ cell* getCellPtr(table* _table, const unsigned colInd, const unsigned rowInd) {
 		return &_table->table[rowInd].row[colInd];
 	}
 	return NULL;
+}
+
+/**
+* Returns index of row
+* of @_cell in @_table
+*/
+int findRowOfCell(table* _table, cell* _cell) {
+	for (unsigned r = 0; r < _table->numberOfRows; r++) {
+		for (unsigned c = 0; c < _table->table->numberOfCells; c++) {
+			if (_cell == getCellPtr(_table, c, r))
+				return r;
+		}
+	}
+}
+
+/**
+* Returns index of column
+* of @_cell in @_table
+*/
+int findColumnOfCell(table* _table, cell* _cell) {
+	for (unsigned r = 0; r < _table->numberOfRows; r++) {
+		for (unsigned c = 0; c < _table->table->numberOfCells; c++) {
+			if (_cell == getCellPtr(_table, c, r))
+				return c;
+		}
+	}
 }
 
 /**
@@ -285,24 +327,6 @@ void setText(cell* _cell, char* text) {
 			_cell->cellText = NULL;
 			_cell->sizeOfText = 0;
 		}
-	}
-}
-
-/**
-* Number(@number > 0) from @number tranforms
-* to text and set it to @_cell
-* with coordinates (@x,@y), if 
-* @_cell isn't NULL.
-*/
-void setNumber(cell* _cell, int number) {
-	if (_cell != NULL) {
-		int digCount = digitCount(number);
-		char* tmp = (char*)realloc(_cell->cellText, (digCount + 1) * sizeof(char));
-		if (tmp != NULL) {
-			_cell->sizeOfText = digCount;
-			_itoa_s(number, _cell->cellText, digCount + 1, 10);
-		}
-		(void)number;
 	}
 }
 
@@ -345,20 +369,21 @@ void swapCells(cell* a, cell* b) {
 void insertColumnToRow(row* _row, cell newCell, unsigned index) {
 	if (_row != NULL) {
 		_row->numberOfCells++;
-		cell* tmp = (cell*)realloc(_row->row, _row->numberOfCells * sizeof(row));
-		if (tmp != NULL) {
-			_row->row = tmp;
+		if (_row->row != NULL) {
+			cell* tmp = (cell*)realloc(_row->row, _row->numberOfCells * sizeof(row));
+			if (tmp != NULL) {
+				_row->row = tmp;
 
-			unsigned i = _row->numberOfCells - 1;
-			for (; i > 0 && i > index; i--) {
-				_row->row[i] = _row->row[i - 1];
+				unsigned i = _row->numberOfCells - 1;
+				for (; i > 0 && i > index; i--) {
+					_row->row[i] = _row->row[i - 1];
+				}
+				_row->row[i] = newCell;
+				return;
 			}
-			_row->row[i] = newCell;
-		}
-		else {
-			_row->numberOfCells--;
 		}
 	}
+	printf("Memmory allocation problem");
 }
 
 /**
@@ -402,20 +427,20 @@ void insertColumn(table* _table, unsigned index) {
 void insertRow(table* _table, row newRow, unsigned index) {
 	if (_table != NULL) {
 		_table->numberOfRows++;
-		row* tmp = (row*)realloc(_table->table, _table->numberOfRows * sizeof(row));
-		if (tmp != NULL) {
-			_table->table = tmp;
-
-			unsigned i = _table->numberOfRows - 1;
-			for (; i > 0 && i > index; i--) {
-				_table->table[i] = _table->table[i - 1];
+		if (_table->table != NULL) {
+			row* tmp = (row*)realloc(_table->table, _table->numberOfRows * sizeof(row));
+			if (tmp != NULL) {
+				_table->table = tmp;
+				unsigned i = _table->numberOfRows - 1;
+				for (;i > 0 && i > index; i--) {
+					_table->table[i] = _table->table[i - 1];
+				}
+				_table->table[i] = newRow;
+				return;
 			}
-			_table->table[i] = newRow;
-		}
-		else {
-			_table->numberOfRows--;
 		}
 	}
+	printf("Memmory allocation error");
 }
 
 /**
@@ -838,6 +863,25 @@ cell** selectTable(table* _table) {
 cell** selectWindow(table* _table, int R1, int C1, int R2, int C2) {
 	if (_table != NULL) {
 
+		if (R1 > (int)(_table->numberOfRows - 1)) {
+			return NULL;
+		}
+		if (C1 > (int)(_table->table->numberOfCells - 1)) {
+			return NULL;
+		}
+		if (R1 <= UNDERSCORE) {
+			R1 = 0;
+		}
+		if (C1 <= UNDERSCORE) {
+			C1 = 0;
+		}
+		if (R2 <= UNDERSCORE) {
+			R2 = _table->numberOfRows - 1;
+		}
+		if (C2 <= UNDERSCORE) {
+			C2 = _table->table->numberOfCells - 1;
+		}
+
 		int countOfCells = (R2 - R1 + 1) * (C2 - C1 + 1);
 		cell** select = (cell**)malloc((countOfCells + 1) * sizeof(cell*));
 
@@ -861,18 +905,18 @@ cell** selectWindow(table* _table, int R1, int C1, int R2, int C2) {
 * returns only first cell
 */
 cell** selectMin(cell** cells) {
-	if (cells[0] != NULL) {
+	if (cells != NULL) {
 		unsigned indexOfMin = 0;
 		double minNumb = 0;
 		bool minSet = false;
 		for (unsigned i = 0; cells[i] != NULL; i++) {
 			if (isThisLineANumber(cells[i]->cellText)) {
-				double numb = atof(cells[i]->cellText);
-				if (!minSet || numb < minNumb) {
-					indexOfMin = i;
-					minNumb = numb;
-					minSet = true;
-				}
+			double numb = atof(cells[i]->cellText);
+			if (!minSet || numb < minNumb) {
+				indexOfMin = i;
+				minNumb = numb;
+				minSet = true;
+			}
 			}
 		}
 		cells[0] = cells[indexOfMin];
@@ -888,7 +932,7 @@ cell** selectMin(cell** cells) {
 * returns only first cell
 */
 cell** selectMax(cell** cells) {
-	if (cells[0] != NULL) {
+	if (cells != NULL) {
 		unsigned indexOfMin = 0;
 		double maxNumb = 0;
 		bool minSet = false;
@@ -915,9 +959,9 @@ cell** selectMax(cell** cells) {
 * returns only first cell
 */
 cell** selectWithSTR(cell** cells, char* STR) {
-	if (cells[0] != NULL) {
+	if (cells != NULL) {
 		for (unsigned i = 0; cells[i] != NULL; i++) {
-			if (algorithmKMP(cells[i]->cellText,STR)) {
+			if (algorithmKMP(cells[i]->cellText, STR)) {
 				cells[0] = cells[i];
 				cells[1] = NULL;
 				return cells;
@@ -927,9 +971,12 @@ cell** selectWithSTR(cell** cells, char* STR) {
 	return NULL;
 }
 ////////////////////////////////////////////////////////////////////////////////////
-
+ 
 
 ///////////////////////CELLS ARRAY EDIT FUNCTIONS///////////////////////////////////
+/**
+* Set text @STR for selected cells
+*/
 void set(cell** cells, char* STR) {
 	if (cells != NULL) {
 		for (unsigned i = 0; cells[i] != NULL; i++) {
@@ -939,6 +986,9 @@ void set(cell** cells, char* STR) {
 	free(cells);
 }
 
+/**
+* Clears text of selected cells
+*/
 void clear(cell** cells) {
 	if (cells != NULL) {
 		for (unsigned i = 0; cells[i] != NULL; i++) {
@@ -948,6 +998,10 @@ void clear(cell** cells) {
 	free(cells);
 }
 
+/**
+* Swaps every cell from @cells
+* with @mainCell.
+*/
 void swap(cell** cells, cell* mainCell) {
 	if (cells != NULL) {
 		for (unsigned i = 0; cells[i] != NULL; i++) {
@@ -956,9 +1010,388 @@ void swap(cell** cells, cell* mainCell) {
 	}
 	free(cells);
 }
+
+/**
+* Sets value of sum to cell @result
+* Sum of all numeric values
+* of cells if text in cell is in
+* %lf format.
+*/
+void sum(cell** cells, cell* result) {
+	if (result != NULL) {
+		double sum = 0;
+		for (unsigned i = 0; cells[i] != NULL; i++) {
+			if (isThisLineANumber(cells[i]->cellText)) {
+				double numb = 0;
+				if(sscanf(cells[i]->cellText, "%lf", &numb))
+					sum += numb;
+				else {
+					printf("isThisLineANumber function error");
+					return;
+				}
+			}
+		}
+		char text[MAX_CELL_TEXT_SIZE + 1];
+		sprintf(text,"%g", sum);
+		setText(result, text);
+	}
+	free(cells);
+}
+
+/**
+* Sets value of average to cell @result
+* Average of all numeric values
+* of cells if text in cell is in
+* %lf format.
+*/
+void avg(cell** cells, cell* result) {
+	if (result != NULL) {
+		double avg = 0;
+		double count = 0;
+		for (unsigned i = 0; cells[i] != NULL; i++) {
+			if (isThisLineANumber(cells[i]->cellText)) {
+				double numb = 0;
+				if (sscanf(cells[i]->cellText, "%lf", &numb))
+					avg += numb;
+				else {
+					printf("isThisLineANumber function error");
+					return;
+				}
+				count++;
+			}
+		}
+		avg /= count;
+		char text[MAX_CELL_TEXT_SIZE + 1];
+		sprintf(text, "%g", avg);
+		setText(result, text);
+	}
+	free(cells);
+}
+
+/**
+* Counts not empty cells in @cells
+* Result is written to @result cell
+*/
+void count(cell** cells, cell* result) {
+	if (result != NULL) {
+		double count = 0;
+		for (unsigned i = 0; cells[i] != NULL; i++) {
+			if (cells[i]->sizeOfText > 0) {
+				count++;
+			}
+		}
+		char text[MAX_CELL_TEXT_SIZE + 1];
+		sprintf(text, "%g",count);
+		setText(result, text);
+	}
+	free(cells);
+}
+
+/*
+* Sets size of text of cell from
+* @cells to @result cell.
+*/
+void len(cell** cells, cell* result) {
+	if (result != NULL) {
+		unsigned count = 0;
+		for (unsigned i = 0; cells[i] != NULL; i++) {
+			count = cells[i]->sizeOfText;
+		}
+		char text[MAX_CELL_TEXT_SIZE + 1];
+		sprintf(text, "%d", count);
+		setText(result, text);
+	}
+	free(cells);
+}
+////////////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////SELECTION COMMANDS HANDLER///////////////////////////////////
+/*
+* Returns number of
+* args in selection command
+* by counting ','
+*/
+int argsCount(char* command) {
+	int result = 1;
+	for (int i = 0; command[i]; i++) {
+		if (command[i] == ',')
+			result++;
+	}
+	return result;
+}
+
+/*
+* Handler for two-arg
+* selection command
+*/
+cell** twoNumArgsSelect(table* _table, char* command) {
+	char r[MAX_COMMAND_SIZE];
+	char c[MAX_COMMAND_SIZE];
+	int R = 0, C = 0;
+	if (sscanf(command, "[%[^,],%[^]]", r, c)) {
+		if (r[0] == '_') {
+			if (c[0] == '_') {
+				return selectTable(_table);
+			}
+			else {
+				if (sscanf(command, "[%[^,],%d]", r, &C)) {
+					return selectColumn(_table, C);
+				}
+			}
+		}
+		else {
+			if (c[0] == '_') {
+				if (sscanf(command, "[%d,%[^]]", &R, c)) {
+					return selectRow(_table, R);
+				}
+			}
+			else {
+				if (sscanf(command, "[%d,%d]", &R, &C)) {
+					return selectCell(_table,R,C);
+				}
+			}
+		}
+	}
+	printf("Invalid selection command error\n");
+	return NULL;
+}
+
+/*
+* Handler for four-arg
+* selection command
+*/
+cell** fourNumArgsSelect(table* _table, char* command) {
+	char cr1[MAX_COMMAND_SIZE];
+	char cc1[MAX_COMMAND_SIZE];
+	char cr2[MAX_COMMAND_SIZE];
+	char cc2[MAX_COMMAND_SIZE];
+	int R1 = 0, C1 = 0, R2 = 0, C2 = 0;
+	if (sscanf(command, "[%[^,],%[^,],%[^,],%[^]]", cr1, cc1, cr2, cc2)) {
+		if (cr1[0] == '_') {
+			R1 = UNDERSCORE;
+		}
+		else {
+			if (sscanf(cr1, "%d", &R1)) {}
+			else {
+				printf("Invalid selection command error\n");
+				return NULL;
+			}
+		}
+		if (cc1[0] == '_') {
+			C1 = UNDERSCORE;
+		}
+		else {
+			if (sscanf(cc1, "%d", &C1)) {}
+			else {
+				printf("Invalid selection command error\n");
+				return NULL;
+			}
+		}
+		if (cr2[0] == '_') {
+			R2 = UNDERSCORE;
+		}
+		else {
+			if (sscanf(cr2, "%d", &R2)) {}
+			else {
+				printf("Invalid selection command error\n");
+				return NULL;
+			}
+		}
+		if (cc2[0] == '_') {
+			C2 = UNDERSCORE;
+		}
+		else {
+			if (sscanf(cc2, "%d", &C2)) {}
+			else {
+				printf("Invalid selection command error\n");
+				return NULL;
+			}
+		}
+
+		return selectWindow(_table, R1, C1, R2, C2);
+	}
+	printf("Invalid selection command error\n");
+	return NULL;
+}
+
+/*
+* Handle numeric selection commands
+*/
+cell** selNumHandler(table* _table, char* command) {
+	if (argsCount(command) > 2) {
+		return fourNumArgsSelect(_table, command);
+	}
+	else {
+		return twoNumArgsSelect(_table, command);
+	}
+}
+
+/*
+* Selection commands handler
+*/
+cell** selComHandler(table* _table, cell** cells, char* command) {
+	if (command != NULL && _table != NULL) {
+		if (command[1] >= '0' && command[1] <= '9' || command[1] == '_') {
+			free(cells);
+			return selNumHandler(_table, command);
+		}
+		else if (algorithmKMP(command, "min")) {
+			return selectMin(cells);
+		}
+		else if (algorithmKMP(command, "min")) {
+			return selectMax(cells);
+		}
+		else if (algorithmKMP(command, "find")) {
+			char STR[MAX_COMMAND_SIZE];
+			if (sscanf(command, "[find %s]", STR))
+				return selectWithSTR(cells, STR);
+		}
+	}
+	printf("Invalid selection command error\n");
+	return NULL;
+}
+////////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////CELL EDIT COMMANDS HANDLER//////////////////////////////
+/*
+* Handler for cell edit
+* commands
+*/
+void celEdiComHandler(table* _table, cell** cells, char* command) {
+	if (command != NULL && _table != NULL) {
+		char com[6];
+		if (sscanf(command, "%s", com)) {
+			if (algorithmKMP(com, "set")) {
+				char coor[MAX_COMMAND_SIZE + 1];
+				if (sscanf(command, "%s %[^\n]", com, coor)) {
+					coor[MAX_COMMAND_SIZE] = '\0';
+					set(cells, coor);
+					return;
+				}
+			}
+			else if (algorithmKMP(com, "clear")) {
+				clear(cells);
+				return;
+			}
+			else {
+				char coor[MAX_COMMAND_SIZE + 1];
+				if (sscanf(command, "%s %s", com, coor)) {
+					int r, c;
+					coor[MAX_COMMAND_SIZE] = '\0';
+					if (sscanf(coor, "[%d,%d]", &r, &c)) {
+						if (algorithmKMP(com, "swap")) {
+							swap(cells, getCellPtr(_table, r, c));
+							return;
+						}
+						else if (algorithmKMP(com, "sum")) {
+							sum(cells, getCellPtr(_table, r, c));
+							return;
+						}
+						else if (algorithmKMP(com, "avg")) {
+							avg(cells, getCellPtr(_table, r, c));
+							return;
+						}
+						else if (algorithmKMP(com, "count")) {
+							count(cells, getCellPtr(_table, r, c));
+							return;
+						}
+						else if (algorithmKMP(com, "len")) {
+							len(cells, getCellPtr(_table, r, c));
+							return;
+						}
+					}
+				}
+			}
+			
+		}
+	}
+	printf("Invalid cell edit command error\n");
+}
+////////////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////TABLE EDIT COMMANDS HANDLER//////////////////////////////
+/*
+* Returns last cell 
+* in @cells
+*/
+cell* getLast(cell** cells) {
+	unsigned i = 0;
+	while (cells[i] != NULL)
+		i++;
+	return cells[i - 1];
+}
+
+/*
+* Handler for table
+* edit commands.
+* @_table - table
+* @cells - selected cells
+* @command - line with command
+*/
+void tabEdiComHandler(table* _table, cell** cells, char* command) {
+	if (command != NULL && _table != NULL) {
+		char com[5];
+		if (sscanf(command, "%s", com)) {
+			if (algorithmKMP(com, "row")) {
+				if (cells != NULL) {
+					int startRowInd = findRowOfCell(_table, cells[0]);
+					int endRowInd = findRowOfCell(_table, getLast(cells));
+					if (algorithmKMP(com, "i")) {
+						insertEmptyRow(_table, startRowInd - 1);
+					}
+					else if (algorithmKMP(com, "a")) {
+						insertEmptyRow(_table, endRowInd + 1);
+					}
+					else if (algorithmKMP(com, "d")) {
+						for (int i = endRowInd; i >= startRowInd; i--) {
+							deleteRow(_table, i);
+						}
+					}
+				}
+				else {
+					if (!algorithmKMP(com, "d")) {
+						appendRow(_table);
+					}
+				}
+				free(cells);
+				return;
+			}
+			else if (algorithmKMP(com, "col")) {
+				if (cells != NULL) {
+					int startColInd = findColumnOfCell(_table, cells[0]);
+					int endColInd = findColumnOfCell(_table, getLast(cells));
+					if (algorithmKMP(com, "i")) {
+						insertColumn(_table, startColInd - 1);
+					}
+					else if (algorithmKMP(com, "a")) {
+						insertColumn(_table, endColInd + 1);
+					}
+					else if (algorithmKMP(com, "d")) {
+						for (int i = endColInd; i >= startColInd; i--) {
+							deleteColumn(_table, i);
+						}
+					}
+				}
+				else {
+					if (!algorithmKMP(com, "d")) {
+						appendColumn(_table);
+					}
+				}
+				free(cells);
+				return;
+			}
+		}
+	}
+	printf("Invalid table edit command error\n");
+}
 ////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char* argv[]) {
 	(void)argc, (void)argv;
+	table t;
+	freeTable(&t);
 	return 0;
 }
