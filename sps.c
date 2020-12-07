@@ -1,6 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+
+#pragma warning( disable: 6386 )	//C6386 (VS) tries to prevent smthg that wont happen
+									//Just delete this line to test
+
+#pragma warning( disable: 5045 )	//C5045 (VS) /Qspectre info waring
+									//Just delete this line to test
+
 #define MAX_LINE_SIZE 10000
 #define MAX_CELL_TEXT_SIZE 500
 #define MAX_COMMAND_SIZE 1000
@@ -388,7 +395,8 @@ void insertColumnToRow(row* _row, cell newCell, unsigned index) {
 	if (_row != NULL) {
 		_row->numberOfCells++;
 		if (_row->row != NULL) {
-			cell* tmp = (cell*)realloc(_row->row, _row->numberOfCells * sizeof(row));
+			cell* tmp = NULL;
+			tmp = (cell*)realloc(_row->row, _row->numberOfCells * sizeof(row));
 			if (tmp != NULL) {
 				_row->row = tmp;
 
@@ -446,7 +454,8 @@ void insertRow(table* _table, row newRow, unsigned index) {
 	if (_table != NULL) {
 		_table->numberOfRows++;
 		if (_table->table != NULL) {
-			row* tmp = (row*)realloc(_table->table, _table->numberOfRows * sizeof(row));
+			row* tmp = NULL;
+			tmp = (row*)realloc(_table->table, _table->numberOfRows * sizeof(row));
 			if (tmp != NULL) {
 				_table->table = tmp;
 				unsigned i = _table->numberOfRows - 1;
