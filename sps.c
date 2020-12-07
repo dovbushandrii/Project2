@@ -82,7 +82,7 @@ void initializeVariable(variables* vars) {
 		for (int i = 0; i < NUMBER_OF_VARS; i++) {
 			initializeCell(&vars->numVar[i]);
 		}
-		vars->selVar = (char**)malloc(0); //On purpose to use free().
+		vars->selVar = (cell**)malloc(0); //On purpose to use free().
 	}
 }
 
@@ -209,30 +209,6 @@ bool isThisLineANumber(char* text) {
 	return false;
 }
 
-/**
-* Concantination A + B. Allocate memory for new
-* pointer. Do not forget to free().
-*/
-char* concantinate(char* A, char* B) {
-	if (A != NULL && B != NULL) {
-		unsigned sizeA = length(A);
-		unsigned sizeB = length(B);
-		char* result = (char*)malloc((sizeA + sizeB + 1) * sizeof(char));
-		if (result != NULL) {
-			unsigned i = 0;
-			for (; i < sizeA; i++) {
-				result[i] = A[i];
-			}
-			for (; i < sizeA + sizeB; i++) {
-				result[i] = B[i - sizeA];
-			}
-			result[sizeA + sizeB] = '\0';
-		}
-		return result;
-	}
-	return NULL;
-}
-
 /*
 * Returns cutted line @result
 * "line[from]-line[to]"
@@ -322,6 +298,7 @@ int findRowOfCell(table* _table, cell* _cell) {
 				return r;
 		}
 	}
+	return -1;
 }
 
 /**
@@ -335,6 +312,7 @@ int findColumnOfCell(table* _table, cell* _cell) {
 				return c;
 		}
 	}
+	return -1;
 }
 
 /**
@@ -613,38 +591,6 @@ void deleteColumn(table* _table, unsigned index) {
 	if (_table != NULL) {
 		for (unsigned i = 0; i < _table->numberOfRows; i++) {
 			deleteColumnInRow(&_table->table[i],index);
-		}
-	}
-}
-////////////////////////////////////////////////////////////////////////////////////
-
-
-/////////////////////////DELETE TABLE ELEMENTS FROM END/////////////////////////////
-/*
-* Removes last row in table
-*/
-void popBackRow(table* _table) {
-	if (_table != NULL) {
-		deleteRow(_table, _table->numberOfRows);
-	}
-}
-
-/*
-* Removes last cell in row
-*/
-void popBackColumnInRow(row* _row) {
-	if (_row != NULL) {
-		deleteColumnInRow(_row, _row->numberOfCells);
-	}
-}
-
-/*
-* Removes last column in table
-*/
-void popBackColumn(table* _table) {
-	if (_table != NULL) {
-		for (unsigned i = 0; i < _table->numberOfRows; i++) {
-			popBackColumnInRow(&_table->table[i]);
 		}
 	}
 }
@@ -1145,8 +1091,8 @@ void len(cell** cells, cell* result) {
 * C is in [1,ColNumb]
 */
 bool checkInputIndex(table* _table, int R, int C) {
-	bool condition1 = C >= 1 && C <= _table->table[0].numberOfCells;
-	bool condition2 = R >= 1 && R <= _table->numberOfRows;
+	bool condition1 = C >= 1 && C <= (int)_table->table[0].numberOfCells;
+	bool condition2 = R >= 1 && R <= (int)_table->numberOfRows;
 	if (condition1 && condition2) {
 		return true;
 	}
@@ -1172,10 +1118,10 @@ unsigned sizeOfSelect(cell** cells) {
 */
 cell** setCellVar(cell** cells, cell** copy) {
 	unsigned sizeOfCells = sizeOfSelect(cells);
-	char** tmp = realloc(copy, (sizeOfCells + 1) * sizeof(char*));
+	cell** tmp = (cell**)realloc(copy, (sizeOfCells + 1) * sizeof(char*));
 	if (tmp != NULL) {
 		copy = tmp;
-		for (int i = 0; i < sizeOfCells; i++) {
+		for (unsigned i = 0; i < sizeOfCells; i++) {
 			copy[i] = cells[i];
 		}
 		copy[sizeOfCells] = NULL;
