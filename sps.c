@@ -73,6 +73,10 @@ void initializeTable(table* _table) {
 	}
 }
 
+/**
+* If @vars is not NULL, allocates
+* memory for variables.
+*/
 void initializeVariable(variables* vars) {
 	if (vars != NULL) {
 		for (int i = 0; i < NUMBER_OF_VARS; i++) {
@@ -81,7 +85,6 @@ void initializeVariable(variables* vars) {
 		vars->selVar = (char**)malloc(0); //On purpose to use free().
 	}
 }
-
 
 /**
 * Frees memory from @_cell->cellText.
@@ -122,6 +125,10 @@ void freeTable(table* _table) {
 	}
 }
 
+/*
+* Frees memory from @vars->numVar
+* and @vars->selVar
+*/
 void freeVariables(variables* vars) {
 	if (vars != NULL) {
 		for (int i = 0; i < NUMBER_OF_VARS; i++) {
@@ -1134,6 +1141,20 @@ void len(cell** cells, cell* result) {
 
 ///////////////////////SELECTION COMMANDS HANDLER///////////////////////////////////
 /*
+* R is in [1,RowNumb]
+* C is in [1,ColNumb]
+*/
+bool checkInputIndex(table* _table, int R, int C) {
+	bool condition1 = C >= 1 && C <= _table->table[0].numberOfCells;
+	bool condition2 = R >= 1 && R <= _table->numberOfRows;
+	if (condition1 && condition2) {
+		return true;
+	}
+	printf("Invalid index\n");
+	return false;
+}
+
+/*
 * Counts pointers on cells of @cells
 * before NULL
 */
@@ -1186,7 +1207,7 @@ int argsCount(char* command) {
 cell** twoNumArgsSelect(table* _table, char* command) {
 	char r[MAX_COMMAND_SIZE];
 	char c[MAX_COMMAND_SIZE];
-	int R = 0, C = 0;
+	int R = 1, C = 1;
 	if (sscanf(command, "[%[^,],%[^]]", r, c)) {
 		if (r[0] == '_') {
 			if (c[0] == '_') {
@@ -1194,19 +1215,25 @@ cell** twoNumArgsSelect(table* _table, char* command) {
 			}
 			else {
 				if (sscanf(command, "[%[^,],%d]", r, &C)) {
-					return selectColumn(_table, C - 1);
+					if (checkInputIndex(_table, R, C)) {
+						return selectColumn(_table, C - 1);
+					}
 				}
 			}
 		}
 		else {
 			if (c[0] == '_') {
 				if (sscanf(command, "[%d,%[^]]", &R, c)) {
-					return selectRow(_table, R - 1);
+					if (checkInputIndex(_table, R, C)) {
+						return selectRow(_table, R - 1);
+					}
 				}
 			}
 			else {
 				if (sscanf(command, "[%d,%d]", &R, &C)) {
-					return selectCell(_table,R - 1,C - 1);
+					if (checkInputIndex(_table, R, C)) {
+						return selectCell(_table, R - 1, C - 1);
+					}
 				}
 			}
 		}
@@ -1230,7 +1257,10 @@ cell** fourNumArgsSelect(table* _table, char* command) {
 			R1 = UNDERSCORE;
 		}
 		else {
-			if (sscanf(cr1, "%d", &R1)) {}
+			if (sscanf(cr1, "%d", &R1)) {
+				if (!checkInputIndex(_table,R1, 1))
+					return NULL;
+			}
 			else {
 				printf("Invalid selection command error\n");
 				return NULL;
@@ -1240,7 +1270,10 @@ cell** fourNumArgsSelect(table* _table, char* command) {
 			C1 = UNDERSCORE;
 		}
 		else {
-			if (sscanf(cc1, "%d", &C1)) {}
+			if (sscanf(cc1, "%d", &C1)) {
+				if (!checkInputIndex(_table, 1, C1))
+					return NULL;
+			}
 			else {
 				printf("Invalid selection command error\n");
 				return NULL;
@@ -1250,7 +1283,10 @@ cell** fourNumArgsSelect(table* _table, char* command) {
 			R2 = UNDERSCORE;
 		}
 		else {
-			if (sscanf(cr2, "%d", &R2)) {}
+			if (sscanf(cr2, "%d", &R2)) {
+				if (!checkInputIndex(_table, R2, 1))
+					return NULL;
+			}
 			else {
 				printf("Invalid selection command error\n");
 				return NULL;
@@ -1260,7 +1296,10 @@ cell** fourNumArgsSelect(table* _table, char* command) {
 			C2 = UNDERSCORE;
 		}
 		else {
-			if (sscanf(cc2, "%d", &C2)) {}
+			if (sscanf(cc2, "%d", &C2)) {
+				if (!checkInputIndex(_table, 1, C2))
+					return NULL;
+			}
 			else {
 				printf("Invalid selection command error\n");
 				return NULL;
@@ -1342,25 +1381,27 @@ void celEdiComHandler(table* _table, cell** cells, char* command) {
 					int r, c;
 					coor[MAX_COMMAND_SIZE] = '\0';
 					if (sscanf(coor, "[%d,%d]", &r, &c)) {
-						if (algorithmKMP(com, "swap")) {
-							swap(cells, getCellPtr(_table, c - 1, r - 1));
-							return;
-						}
-						else if (algorithmKMP(com, "sum")) {
-							sum(cells, getCellPtr(_table, c - 1, r - 1));
-							return;
-						}
-						else if (algorithmKMP(com, "avg")) {
-							avg(cells, getCellPtr(_table, c - 1, r - 1));
-							return;
-						}
-						else if (algorithmKMP(com, "count")) {
-							count(cells, getCellPtr(_table, c - 1, r - 1));
-							return;
-						}
-						else if (algorithmKMP(com, "len")) {
-							len(cells, getCellPtr(_table, c - 1, r - 1));
-							return;
+						if (checkInputIndex(_table, r, c)) {
+							if (algorithmKMP(com, "swap")) {
+								swap(cells, getCellPtr(_table, c - 1, r - 1));
+								return;
+							}
+							else if (algorithmKMP(com, "sum")) {
+								sum(cells, getCellPtr(_table, c - 1, r - 1));
+								return;
+							}
+							else if (algorithmKMP(com, "avg")) {
+								avg(cells, getCellPtr(_table, c - 1, r - 1));
+								return;
+							}
+							else if (algorithmKMP(com, "count")) {
+								count(cells, getCellPtr(_table, c - 1, r - 1));
+								return;
+							}
+							else if (algorithmKMP(com, "len")) {
+								len(cells, getCellPtr(_table, c - 1, r - 1));
+								return;
+							}
 						}
 					}
 				}
@@ -1450,6 +1491,10 @@ void tabEdiComHandler(table* _table, cell** cells, char* command) {
 
 
 //////////////////////////VARIABLE EDIT COMMANDS HANDLER////////////////////////////
+/*
+* Handler for variables
+* edit commands
+*/
 void varEdiComHandler(table* _table, cell** cells, variables* vars, char* command) {
 	if(_table != NULL && cells != NULL && command != NULL){
 		char com[6];
@@ -1462,32 +1507,34 @@ void varEdiComHandler(table* _table, cell** cells, variables* vars, char* comman
 			 else {
 				 int varInd;
 				 if (sscanf(command, "%s _%d", com, &varInd)) {
-					 if (algorithmKMP(com, "def")) {
-						 setText(&vars->numVar[varInd], getLast(cells)->cellText);
-						 return;
-					 }
-					 else if (algorithmKMP(com, "use")) {
-						 for (unsigned i = 0; cells[i]; i++) {
-							 setText(cells[i], vars->numVar[varInd].cellText);
-						 }
-						 return;
-					 }
-					 else if (algorithmKMP(com, "inc")) {
-						 if (isThisLineANumber(vars->numVar[varInd].cellText)) {
-							 double var;
-							 if (sscanf(vars->numVar[varInd].cellText, "%lf", &var)) {
-								 var++;
-								 char text[MAX_CELL_TEXT_SIZE + 1];
-								 sprintf(text, "%g", var);
-								 setText(&vars->numVar[varInd], text);
-								 return;
-							 }
-						 }
-						 else {
-							 setText(&vars->numVar[varInd], "1");
+					 if (varInd >= 0 && varInd < NUMBER_OF_VARS) {
+						 if (algorithmKMP(com, "def")) {
+							 setText(&vars->numVar[varInd], getLast(cells)->cellText);
 							 return;
 						 }
-						 
+						 else if (algorithmKMP(com, "use")) {
+							 for (unsigned i = 0; cells[i]; i++) {
+								 setText(cells[i], vars->numVar[varInd].cellText);
+							 }
+							 return;
+						 }
+						 else if (algorithmKMP(com, "inc")) {
+							 if (isThisLineANumber(vars->numVar[varInd].cellText)) {
+								 double var;
+								 if (sscanf(vars->numVar[varInd].cellText, "%lf", &var)) {
+									 var++;
+									 char text[MAX_CELL_TEXT_SIZE + 1];
+									 sprintf(text, "%g", var);
+									 setText(&vars->numVar[varInd], text);
+									 return;
+								 }
+							 }
+							 else {
+								 setText(&vars->numVar[varInd], "1");
+								 return;
+							 }
+
+						 }
 					 }
 				 }
 			 }
@@ -1499,7 +1546,6 @@ void varEdiComHandler(table* _table, cell** cells, variables* vars, char* comman
 
 
 ///////////////////////////////MAIN COMMANDS HANDLER////////////////////////////////
-
 /*
 * Checks is @command
 * a table selection command.
@@ -1593,7 +1639,9 @@ void mainHandler(table* _table, char* commands) {
 }
 ////////////////////////////////////////////////////////////////////////////////////
 
-
+/*
+* Main starting function.
+*/
 void start(int args, char* argv[]) {
 	char delim = ' ';
 	if (args > 1) {
