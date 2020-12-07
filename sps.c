@@ -5,6 +5,7 @@
 #define MAX_CELL_TEXT_SIZE 500
 #define MAX_COMMAND_SIZE 1000
 #define UNDERSCORE -1			//Stands for '_'
+#define NUMBER_OF_VARS 10
 
 //https://github.com/dovbushandrii/Project2
 
@@ -23,6 +24,11 @@ typedef struct TableStruct {
 	row* table;
 	unsigned numberOfRows;
 }table;
+
+typedef struct VariablesStruct {
+	cell numVar[NUMBER_OF_VARS];
+	cell** selVar;
+}variables;
 ////////////////////////////////////////////////////////////////////////////////////
 
 void start(int args, char* argv[]);
@@ -67,6 +73,16 @@ void initializeTable(table* _table) {
 	}
 }
 
+void initializeVariable(variables* vars) {
+	if (vars != NULL) {
+		for (int i = 0; i < NUMBER_OF_VARS; i++) {
+			initializeCell(&vars->numVar[i]);
+		}
+		vars->selVar = (char**)malloc(0); //On purpose to use free().
+	}
+}
+
+
 /**
 * Frees memory from @_cell->cellText.
 * Sets @_cell->sizeOfText to 0.
@@ -103,6 +119,15 @@ void freeTable(table* _table) {
 		}
 		free(_table->table);
 		_table->numberOfRows = 0;
+	}
+}
+
+void freeVariables(variables* vars) {
+	if (vars != NULL) {
+		for (int i = 0; i < NUMBER_OF_VARS; i++) {
+			freeCell(&vars->numVar[i]);
+		}
+		free(vars->selVar);
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////////
@@ -169,7 +194,7 @@ bool isThisLineANumber(char* text) {
 				else
 					return false;
 			}
-			else if (text[i] != '-' && (text[i] < '0' || text[i] >'9'))
+			else if (text[i] != '-' && text[i] != 'e' && text[i] != '+' && (text[i] < '0' || text[i] >'9'))
 				return false;
 		}
 		return true;
@@ -1109,6 +1134,38 @@ void len(cell** cells, cell* result) {
 
 ///////////////////////SELECTION COMMANDS HANDLER///////////////////////////////////
 /*
+* Counts pointers on cells of @cells
+* before NULL
+*/
+unsigned sizeOfSelect(cell** cells) {
+	unsigned result = 0;
+	for (unsigned i = 0; cells[i] != NULL; i++) {
+		result++;
+	}
+	return result;
+}
+
+/*
+* COPY MUST HAVE ALLOCATED MEMORY
+* Returns copy of @cells.
+*/
+cell** setCellVar(cell** cells, cell** copy) {
+	unsigned sizeOfCells = sizeOfSelect(cells);
+	char** tmp = realloc(copy, (sizeOfCells + 1) * sizeof(char*));
+	if (tmp != NULL) {
+		copy = tmp;
+		for (int i = 0; i < sizeOfCells; i++) {
+			copy[i] = cells[i];
+		}
+		copy[sizeOfCells] = NULL;
+		return copy;
+	}
+	printf("Memory allocation for varible error");
+	return NULL;
+
+}
+
+/*
 * Returns number of
 * args in selection command
 * by counting ','
@@ -1231,20 +1288,24 @@ cell** selNumHandler(table* _table, char* command) {
 /*
 * Selection commands handler
 */
-cell** selComHandler(table* _table, cell** cells, char* command) {
+cell** selComHandler(table* _table, cell** cells, variables* vars, char* command) {
 	if (command != NULL && _table != NULL) {
-		if (command[1] >= '0' && command[1] <= '9' || command[1] == '_') {
+		if (algorithmKMP(command,"[_]")) {
+			cells = setCellVar(vars->selVar, cells);
+			return cells;
+		}
+		else if (command[1] >= '0' && command[1] <= '9' || command[1] == '_') {
 			return selNumHandler(_table, command);
 		}
 		else if (algorithmKMP(command, "min")) {
 			return selectMin(cells);
 		}
-		else if (algorithmKMP(command, "min")) {
+		else if (algorithmKMP(command, "max")) {
 			return selectMax(cells);
 		}
 		else if (algorithmKMP(command, "find")) {
 			char STR[MAX_COMMAND_SIZE];
-			if (sscanf(command, "[find %s]", STR))
+			if (sscanf(command, "[find %[^]]", STR))
 				return selectWithSTR(cells, STR);
 		}
 	}
@@ -1363,7 +1424,7 @@ void tabEdiComHandler(table* _table, cell** cells, char* command) {
 					int startColInd = findColumnOfCell(_table, cells[0]);
 					int endColInd = findColumnOfCell(_table, getLast(cells));
 					if (algorithmKMP(com, "i")) {
-						insertColumn(_table, startColInd - 1);
+						insertColumn(_table, startColInd);
 					}
 					else if (algorithmKMP(com, "a")) {
 						insertColumn(_table, endColInd + 1);
@@ -1388,8 +1449,61 @@ void tabEdiComHandler(table* _table, cell** cells, char* command) {
 ////////////////////////////////////////////////////////////////////////////////////
 
 
+//////////////////////////VARIABLE EDIT COMMANDS HANDLER////////////////////////////
+void varEdiComHandler(table* _table, cell** cells, variables* vars, char* command) {
+	if(_table != NULL && cells != NULL && command != NULL){
+		char com[6];
+		if (sscanf(command, "%s", com)) {
+			com[5] = '\n';
+			 if (algorithmKMP(com, "set")) {
+				 vars->selVar = setCellVar(cells, vars->selVar);
+				 return;
+			 }
+			 else {
+				 int varInd;
+				 if (sscanf(command, "%s _%d", com, &varInd)) {
+					 if (algorithmKMP(com, "def")) {
+						 setText(&vars->numVar[varInd], getLast(cells)->cellText);
+						 return;
+					 }
+					 else if (algorithmKMP(com, "use")) {
+						 for (unsigned i = 0; cells[i]; i++) {
+							 setText(cells[i], vars->numVar[varInd].cellText);
+						 }
+						 return;
+					 }
+					 else if (algorithmKMP(com, "inc")) {
+						 if (isThisLineANumber(vars->numVar[varInd].cellText)) {
+							 double var;
+							 if (sscanf(vars->numVar[varInd].cellText, "%lf", &var)) {
+								 var++;
+								 char text[MAX_CELL_TEXT_SIZE + 1];
+								 sprintf(text, "%g", var);
+								 setText(&vars->numVar[varInd], text);
+								 return;
+							 }
+						 }
+						 else {
+							 setText(&vars->numVar[varInd], "1");
+							 return;
+						 }
+						 
+					 }
+				 }
+			 }
+		}
+	}
+	printf("Invalid variable edit command\n");
+}
+////////////////////////////////////////////////////////////////////////////////////
+
+
 ///////////////////////////////MAIN COMMANDS HANDLER////////////////////////////////
 
+/*
+* Checks is @command
+* a table selection command.
+*/
 bool isThisSelection(char* command) {
 	if (command != NULL) {
 		if (command[0] == '[')
@@ -1398,11 +1512,15 @@ bool isThisSelection(char* command) {
 	return false;
 }
 
+/*
+* Checks is @command
+* a table edit command.
+*/
 bool isThisTableEdit(char* command) {
 	if (command != NULL) {
-		char com[5];
+		char com[6];
 		if (sscanf(command, "%s", com)) {
-			com[4] = '\0';
+			com[5] = '\0';
 			if (algorithmKMP(com, "row") || algorithmKMP(com, "col"))
 				return true;
 		}
@@ -1410,49 +1528,90 @@ bool isThisTableEdit(char* command) {
 	return false;
 }
 
-cell** handleComand(table* _table, cell** select, char* command) {
-	if (isThisSelection(command)) {
-		return selComHandler(_table, select, command);
+/*
+* Checks is @command 
+* a variable edit command.
+*/
+bool isThisVarEdit(char* command) {
+	if (algorithmKMP(command, "def"))
+		return true;
+	else if (algorithmKMP(command, "use")) 
+		return true;
+	else if (algorithmKMP(command, "inc")) 
+		return true;
+	else if (algorithmKMP(command, "[set]")) 
+		return true;
+	return false;
+}
+
+/*
+* Handles command and 
+* call corresponding
+* command handlers
+*/
+cell** handleComand(table* _table, cell** select, char* command, variables* vars) {
+	if (isThisVarEdit(command)) {
+		varEdiComHandler(_table, select, vars, command);
+		return select;
+	}
+	else if (isThisSelection(command)) {
+		return selComHandler(_table, select, vars, command);
 	}
 	else if (isThisTableEdit(command)) {
 		tabEdiComHandler(_table, select, command);
 		return select;
 	}
 	else {
-		celEdiComHandler(_table, select, command);
+		celEdiComHandler(_table, select,command);
 		return select;
 	}
 }
 
+/**
+* Divides CMD_SEQUENCE to
+* separate commads and 
+* send command to @handleComand.
+* @_table - table
+* @commands - CMD_SEQUENCE
+*/
 void mainHandler(table* _table, char* commands) {
 	cell** select = NULL;
-	unsigned startOfCom = 1;
+	variables vars;
+	initializeVariable(&vars);
+	unsigned startOfCom = 0;
 	char command[MAX_COMMAND_SIZE + 1];
-	for (int j = 1; commands[j]; j++) {
+	for (int j = 0; commands[j]; j++) {
 		if (commands[j] == ';' || !commands[j + 1]) {
+			if (!commands[j + 1]) j++;
 			slice(commands, command, startOfCom, j - 1);
 			startOfCom = j + 1;
-			select = handleComand(_table, select, command);
+			select = handleComand(_table, select, command, &vars);
 		}
 	}
+	freeVariables(&vars);
 	free(select);
 }
 ////////////////////////////////////////////////////////////////////////////////////
 
+
 void start(int args, char* argv[]) {
 	char delim = ' ';
+	if (args > 1) {
+		table t;
+		initializeTable(&t);
 
-	table t;
-	initializeTable(&t);
+		unsigned wasThereDelim = 0;
+		if (algorithmKMP(argv[1], "-d")) {
+			delim = argv[2][0];
+			wasThereDelim = 2;
+		}
 
-	unsigned wasThereDelim = 0;
-	if (algorithmKMP(argv[1], "-d")) {
-		delim = argv[2][0];
-		wasThereDelim = 2;
+		readTableFromFile(&t, delim, argv[2 + wasThereDelim]);
+		mainHandler(&t, argv[1 + wasThereDelim]);
+		writeTableToFile(&t, delim, argv[2 + wasThereDelim]);
+		freeTable(&t);
 	}
-
-	readTableFromFile(&t, delim, argv[2 + wasThereDelim]);
-	mainHandler(&t, argv[1 + wasThereDelim]);
-	writeTableToFile(&t, delim, argv[2 + wasThereDelim]);
-	freeTable(&t);
+	else {
+		printf("Empty input error");
+	}
 }
