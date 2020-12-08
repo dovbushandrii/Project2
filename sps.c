@@ -1208,7 +1208,7 @@ cell** fourNumArgsSelect(table* _table, char* command) {
 	char cc2[MAX_COMMAND_SIZE];
 	int R1 = 0, C1 = 0, R2 = 0, C2 = 0;
 	if (sscanf(command, "[%[^,],%[^,],%[^,],%[^]]", cr1, cc1, cr2, cc2)) {
-		if (cr1[0] == '_') {
+		if (cr1[0] == '-') {
 			R1 = UNDERSCORE;
 		}
 		else {
@@ -1221,7 +1221,7 @@ cell** fourNumArgsSelect(table* _table, char* command) {
 				return NULL;
 			}
 		}
-		if (cc1[0] == '_') {
+		if (cc1[0] == '-') {
 			C1 = UNDERSCORE;
 		}
 		else {
@@ -1234,7 +1234,7 @@ cell** fourNumArgsSelect(table* _table, char* command) {
 				return NULL;
 			}
 		}
-		if (cr2[0] == '_') {
+		if (cr2[0] == '-') {
 			R2 = UNDERSCORE;
 		}
 		else {
@@ -1247,7 +1247,7 @@ cell** fourNumArgsSelect(table* _table, char* command) {
 				return NULL;
 			}
 		}
-		if (cc2[0] == '_') {
+		if (cc2[0] == '-') {
 			C2 = UNDERSCORE;
 		}
 		else {
@@ -1593,6 +1593,7 @@ void mainHandler(table* _table, char* commands) {
 	free(select);
 }
 ////////////////////////////////////////////////////////////////////////////////////
+
 
 /*
 * Main starting function.
